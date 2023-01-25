@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+int is_prime(int n) {
+    if (n <= 1) return 0;
+    if (n <= 3) return 1;
+    if (n % 2 == 0 || n % 3 == 0) return 0;
+    for (int i = 5; i * i <= n; i += 6) {
+        if (n % i == 0 || n % (i + 2) == 0)
+            return 0;
+    }
+    return 1;
+}
+
+int main(int argc, char** argv) {
+    unsigned long int RANGE = 100;
+    double time = MPI_Wtime();
+    int rank, num_procs;
+    int prev_prime = 0, curr_prime = 0;
+    int max_gap = 0, curr_gap = 0;
+    int data_size = 3;
+    int *data = malloc(sizeof(int) * data_size);
+    MPI_Status status;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    int local_start = rank * RANGE / num_procs + 1;
+    int local_end = (rank+1) * RANGE / num_procs;
+    for (int i = local_start; i <= local_end; i++) {
+        if (is_prime(i)) {
+            curr_prime = i;
+            if (prev_prime != 0) {
+                curr_gap = curr_prime - prev_prime;
+                if (curr_gap > max_gap){
+		 max_gap = curr_gap;
+		 data[0] = prev_prime;
+		 data[1] = curr_prime;
+		 data[2] = max_gap;
+		}
+            }
+            prev_prime = i;
+        }
+    }
+    if(rank != 0)
+        MPI_Send(data, data_size, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+    if(rank == 0){
+        int global_max_gap = max_gap;
+	int first_prime, second_prime;
+        for(int i = 1; i < num_procs; i++){
+            int *temp;
+            MPI_Recv(temp, data_size, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+            if(temp[2] > global_max_gap) {
+		first_prime = temp[0];
+		second_prime = temp[1];
+                global_max_gap = temp[2];
+		}		
+        }
+        time += MPI_Wtime();
+        printf("The largest gap between prime numbers is: %d\n", global_max_gap);
+	printf("The largest prime pairs are (%d, %d)\n", first_prime, second_prime);
+        printf("The time it taken to finish the program is %f\n", time);
+    }
+    MPI_Finalize();
+    return 0;
+}
