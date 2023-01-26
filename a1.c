@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     int prev_prime = 0, curr_prime = 0;
     int max_gap = 0, curr_gap = 0;
     int first_prime = 0, second_prime = 0;
-    double time = MPI_Wtime();
+    double start_time = MPI_Wtime();
     MPI_Status status;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -47,8 +47,8 @@ int main(int argc, char** argv) {
 
     if(rank == 0){
         int global_max_gap = 0;
-        unsigned long int global_first_prime = 0;
-        unsigned long int global_second_prime = 0;
+        int global_first_prime = 0;
+        int global_second_prime = 0;
         for(int i = 1; i < num_procs; i++){
             int data[3];
             MPI_Recv(data, 3, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
                 global_second_prime = data[2];
             }
         }
-        time += MPI_Wtime();
+        double time = MPI_Wtime() - start_time;
         printf("The largest gap between prime numbers is: %d\n", global_max_gap);
         printf("The prime number pairs with the largest gap are: %d, %d\n", global_first_prime, global_second_prime);
         printf("The time it has been running is: %f", time);
