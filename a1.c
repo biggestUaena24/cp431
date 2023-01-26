@@ -38,20 +38,21 @@ int main(int argc, char** argv) {
                     data[0] = max_gap;
                     data[1] = prev_prime;
                     data[2] = curr_prime;
+                    first_prime = prev_prime;
+                    second_prime = curr_prime;
                 }
             }
             prev_prime = i;
         }
     }
     if(rank != 0){
-        printf("%d processor sending prime pairs %d %d with gap %d\n", rank, data[1], data[2], data[0]);
         MPI_Send(data, 3, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
 
     if(rank == 0){
         int global_max_gap = max_gap;
-        int global_first_prime = prev_prime;
-        int global_second_prime = curr_prime;
+        int global_first_prime = first_prime;
+        int global_second_prime = second_prime;
         for(int i = 1; i < p; i++){
             int recv[3];
             MPI_Recv(recv, 3, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
@@ -62,7 +63,7 @@ int main(int argc, char** argv) {
                 global_second_prime = recv[2];
             }
         }
-        time += MPI_Wtime();
+        time = MPI_Wtime() - time;
         printf("The largest gap between prime numbers is: %d\n", global_max_gap);
         printf("The prime number pairs with the largest gap are: %d, %d\n", global_first_prime, global_second_prime);
         printf("The time it has been running is: %f\n", time);
