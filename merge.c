@@ -1,145 +1,95 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
-#include <math.h>
 
-#define N 10
+void merge(int *a, int *b, int *c, int n, int m)
+{
+    int i = 0, j = 0, k = 0;
 
-void merge(int *arr, int l, int m, int r) {
-    int i, j, k;
-    int n1 = m - l + 1;
-    int n2 = r - m;
- 
-    int L[n1], R[n2];
- 
-    for (i = 0; i < n1; i++)
-        L[i] = arr[l + i];
-    for (j = 0; j < n2; j++)
-        R[j] = arr[m + 1 + j];
- 
-    i = 0;
-    j = 0;
-    k = l;
-    while (i < n1 && j < n2) {
-        if (L[i] <= R[j]) {
-            arr[k] = L[i];
-            i++;
-        }
-        else {
-            arr[k] = R[j];
-            j++;
-        }
-        k++;
+    while (i < n && j < m) {
+        if (a[i] < b[j])
+            c[k++] = a[i++];
+        else
+            c[k++] = b[j++];
     }
- 
-    while (i < n1) {
-        arr[k] = L[i];
-        i++;
-        k++;
-    }
- 
-    while (j < n2) {
-        arr[k] = R[j];
-        j++;
-        k++;
-    }
+
+    while (i < n)
+        c[k++] = a[i++];
+
+    while (j < m)
+        c[k++] = b[j++];
 }
 
-void parallel_merge(int* A, int* B, int* C, int n, int m) {
-    int comm_sz, my_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    int p = comm_sz;
-    int local_n = n / p;
-    int local_m = m / p;
-    int *local_A = (int*)malloc(local_n * sizeof(int));
-    int *local_B = (int*)malloc(local_m * sizeof(int));
-    int *local_C = (int*)malloc((local_n + local_m) * sizeof(int));
+int main(int argc, char **argv)
+{
+    int rank, size, i, j, n, m, k, *a, *b, *c, *temp;
+    double start_time, end_time;
 
-    MPI_Scatter(A, local_n, MPI_INT, local_A, local_n, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Scatter(B, local_m, MPI_INT, local_B, local_m, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    int i, j, k;
-    for (i = 0; i < local_n; i++) {
-        local_C[i] = local_A[i];
-    }
-    for (j = 0; j < local_m; j++) {
-        local_C[i + j] = local_B[j];
-    }
+    n = 1000000;
+    m = 1000000;
+    k = n / size;
 
-    for (i = 0; i < p; i++) {
-        int sendcount = (i + 1) * local_n < n ? local_n : n - i * local_n;
-        int recvcount = (i + 1) * local_n < n ? local_n : n - i * local_n;
-        int sendcount_B = (i + 1) * local_m < m ? local_m : m - i * local_m;
-        int recvcount_B = (i + 1) * local_m < m ? local_m : m - i * local_m;
+    a = (int *) malloc(n * sizeof(int));
+    b = (int *) malloc(m * sizeof(int));
+    c = (int *) malloc((n + m) * sizeof(int));
 
-        int *recv_B = (int*)malloc(recvcount_B * sizeof(int));
-        MPI_Sendrecv(local_A, sendcount, MPI_INT, (my_rank + 1) % p, 0, recv_B, recvcount_B, MPI_INT, (my_rank + p - 1) % p, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // generate random sorted arrays
+    srand(12345);
+    for (i = 0; i < n; i++)
+        a[i] = rand();
 
-        merge(local_C, 0, sendcount - 1, sendcount + recvcount - 1);
+    for (i = 0; i < m; i++)
+        b[i] = rand();
 
-        int m = sendcount_B + recvcount_B;
-        int *temp = (int*)malloc(m * sizeof(int));
-        int idx = 0;
-        i = j = 0;
-        while (i < sendcount && j < recvcount_B) {
-            if (local_C[i] < recv_B[j]) {
-                temp[idx++] = local_C[i++];
-            }
-            else {
-                temp[idx++] = recv_B[j++];
-            }
+    // partition the arrays
+    int *as = (int *) malloc(k * sizeof(int));
+    int *bs = (int *) malloc(k * sizeof(int));
+    int *cs = (int *) malloc(2 * k * sizeof(int));
+
+    MPI_Scatter(a, k, MPI_INT, as, k, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(b, k, MPI_INT, bs, k, MPI_INT, 0, MPI_COMM_WORLD);
+
+    start_time = MPI_Wtime();
+
+    // perform merging locally
+    merge(as, bs, cs, k, k);
+
+    // merge results
+    for (i = 0; i < k; i++)
+        c[i + rank * k] = cs[i];
+
+    for (i = 1; i < size; i++) {
+        if (rank == i) {
+            MPI_Send(cs, k, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        } else if (rank == 0) {
+            MPI_Recv(cs, k, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            for (j = 0; j < k; j++)
+                c[j + i * k] = cs[j];
         }
-        while (i < sendcount) {
-            temp[idx++] = local_C[i++];
-        }
-        while (j < recvcount_B) {
-            temp[idx++] = recv_B[j++];
-        }
-
-        for (i = 0; i < sendcount; i++) {
-            local_C[i] = temp[i];
-        }
-        for (j = 0; j < recvcount_B; j++) {
-            local_C[sendcount + j] = temp[sendcount + j];
-        }
-
-        free(recv_B);
-        free(temp);
     }
 
-    MPI_Gather(local_C, local_n + local_m, MPI_INT, C, local_n + local_m, MPI_INT, 0, MPI_COMM_WORLD);
+    // perform final merging
+    if (rank == 0) {
+        temp = (int *) malloc((n + m) * sizeof(int));
 
-    free(local_A);
-    free(local_B);
-    free(local_C);
-}
+        merge(c, &c[n/size], temp, n/size, n - n/size);
 
-int main(int argc, char **args) {
-    int A[N] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    int B[N] = {1, 3, 5, 7, 9, 11, 13, 15, 17, 19};
-    int C[2*N];
-    int n = N;
-    int m = N;
-    int my_rank, comm_sz;
-    MPI_Init(&argc, args);
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+        for (i = 1; i < size; i++) {
+            MPI_Recv(&temp[i * k], k, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
 
-    double start_time = MPI_Wtime();
+        merge(c, temp, temp + n, n, m);
 
-    parallel_merge()
+        end_time = MPI_Wtime();
 
-    double end_time = MPI_Wtime();
-    double total_time = end_time - start_time;
-
-    printf("time taken: %d\n", totla_time);
-
-    int i;
-    for (i=0;i<n+m;i++) {
-        printf("%d ", C[i]);
+        printf("Time taken = %lf seconds\n", end_time - start_time);
     }
-    printf("\n");
 
+    MPI_Finalize();
     return 0;
 }
