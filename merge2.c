@@ -103,7 +103,7 @@ if (rank == 0) {
 }
 
 // gather the included indices of the second array to the root process
-MPI_Gatherv(include, m, MPI_INT, included_indices, recvcounts2, displs2, MPI_INT, 0, MPI_COMM_WORLD);
+MPI_Gather(include, m, MPI_INT, included_indices, recvcounts2, displs2, MPI_INT, 0, MPI_COMM_WORLD);
 
 // merge the two arrays
 if (rank == 0) {
