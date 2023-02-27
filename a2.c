@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
+#include "mpi.h"
 
-#define ARRAY_SIZE 1000000000
+#define ARRAY_SIZE 16 
 
 int cmp(const void *a, const void *b) {
     return (*(int*)a - *(int*)b);
