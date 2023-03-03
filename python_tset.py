@@ -10,9 +10,6 @@ np.random.seed(SEED)
 def generate_sorted_array(lower, upper, n, dtype):
     return np.sort(np.random.randint(lower, upper, size=n, dtype=dtype))
 
-def merge(arr1, arr2):
-    return np.sort(np.concatenate((arr1,arr2)), kind='merge')
-
 def binary_search(arr, elem, start):
     first = start
     last = len(arr)
@@ -29,6 +26,13 @@ def binary_search(arr, elem, start):
         mid = int((first + last)/2)
 
     return mid + 1
+
+def merge(arr1, arr2):
+    return np.sort(np.concatenate((arr1,arr2)), kind='merge')
+
+def is_correct(A, B, merged):
+    original = merge(A, B)
+    return np.array_equal(original, merged)
 
 program_run_time = MPI.Wtime()
 comm = MPI.COMM_WORLD
@@ -59,6 +63,24 @@ if rank == 0:
         comm.Send([B[partition_B_index:b_index], MPI.INT], dest=i + 1, tag=3)
         partition_B_index = b_index
 
+elif rank >= 1:
+    merge_a_size = comm.recv(source=0, tag=0)
+    merge_a = np.empty(merge_a_size, dtype='i')
+    comm.Recv([merge_a, MPI.INT], source=0, tag=1)
+
+    merge_b_size = comm.recv(source=0, tag=2)
+    merge_b = np.empty(merge_b_size, dtype='i')
+    comm.Recv([merge_b, MPI.INT], source=0, tag=3)
+
+    merge_start_time = MPI.Wtime()
+    merged = merge(merge_a, merge_b)
+    merge_end_time = MPI.Wtime()
+
+    print(f"Rank {rank} took {merge_end_time - merge_start_time: .4f} seconds to merge")
+    comm.send(len(merged), dest=0, tag=4)
+    comm.Send([merged, MPI.INT], dest=0, tag=5)
+
+if rank == 0:
     merged_arrays = []
     merge_global_start_time = MPI.Wtime()
     for i in range(1,size):
@@ -80,23 +102,4 @@ if rank == 0:
     print(f"Time to generate arrays = {array_generation_end_time - array_generation_time: .4f} seconds")
     print(f"Time to merge all the arrays received = {merge_global_end_time - merge_global_start_time: .4f} seconds")
     print(f"Total time to run the program = {program_end_time - program_run_time: .4f} seconds")
-
-
-
-
-elif rank >= 1:
-    merge_a_size = comm.recv(source=0, tag=0)
-    merge_a = np.empty(merge_a_size, dtype='i')
-    comm.Recv([merge_a, MPI.INT], source=0, tag=1)
-
-    merge_b_size = comm.recv(source=0, tag=2)
-    merge_b = np.empty(merge_b_size, dtype='i')
-    comm.Recv([merge_b, MPI.INT], source=0, tag=3)
-
-    merge_start_time = MPI.Wtime()
-    merged = merge(merge_a, merge_b)
-    merge_end_time = MPI.Wtime()
-
-    print(f"Rank {rank} took {merge_end_time - merge_start_time: .4f} seconds to merge")
-    comm.send(len(merged), dest=0, tag=4)
-    comm.Send([merged, MPI.INT], dest=0, tag=5)
+    print(f"Is the merged array correct? {is_correct(A, B, merged_arrays)}")
