@@ -44,14 +44,14 @@ if rank == 0:
     print("The first few elements of the arrays are:")
     print("Array A: ", A[:MAX_PRINT])
     print("Array B: ", B[:MAX_PRINT])
-		
+
     partition_A = np.array_split(A, size - 1)
 
 
     for i in range(1, size) :
         comm.send(len(partition_A[i-1]), dest=i, tag=0)
         comm.Send([ partition_A[i-1] , MPI.INT], dest=i, tag=1)
-    
+
     partition_B_index = 0
     for i, partition in enumerate(partition_A):
         b_index = binary_search(B, partition[-1], partition_B_index)
@@ -59,13 +59,13 @@ if rank == 0:
         comm.Send([B[partition_B_index:b_index], MPI.INT], dest=i + 1, tag=3)
         partition_B_index = b_index
 
-    merged_arrays = [None] * (size - 1)
+    merged_arrays = []
     merge_global_start_time = MPI.Wtime()
     for i in range(1,size):
         merged_size = comm.recv(source=i, tag=4)
         merged = np.empty(merged_size, dtype='i')
         comm.Recv([merged, MPI.INT], source=i, tag=5)
-        merged_arrays[i-1] = merged
+        merged_arrays.append(merged)
 
     merged_arrays = np.concatenate(merged_arrays, dtype = 'i')
     merge_global_end_time = MPI.Wtime()
@@ -80,16 +80,17 @@ if rank == 0:
     print(f"Time to generate arrays = {array_generation_end_time - array_generation_time: .4f} seconds")
     print(f"Time to merge all the arrays received = {merge_global_end_time - merge_global_start_time: .4f} seconds")
     print(f"Total time to run the program = {program_end_time - program_run_time: .4f} seconds")
-    
+
 
 
 
 elif rank >= 1:
     merge_a_size = comm.recv(source=0, tag=0)
-    merge_b_size = comm.recv(source=0, tag=2)
     merge_a = np.empty(merge_a_size, dtype='i')
-    merge_b = np.empty(merge_b_size, dtype='i')
     comm.Recv([merge_a, MPI.INT], source=0, tag=1)
+
+    merge_b_size = comm.recv(source=0, tag=2)
+    merge_b = np.empty(merge_b_size, dtype='i')
     comm.Recv([merge_b, MPI.INT], source=0, tag=3)
 
     merge_start_time = MPI.Wtime()
