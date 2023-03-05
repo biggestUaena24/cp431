@@ -1,0 +1,20 @@
+Rank 1:  0.00008106s
+Rank 2:  0.00008607s
+Rank 3:  0.00007701s
+Rank 4:  0.00008202s
+Rank 5:  0.00008297s
+Rank 7:  0.00007606s
+Rank 6:  0.00009990s
+Rank 8:  0.00007915s
+Rank 9:  0.00008702s
+Rank 10:  0.00008202s
+Rank 11:  0.00007820s
+Rank 12:  0.00009012s
+Rank 13:  0.00008702s
+Rank 14:  0.00008988s
+Rank 15:  0.00008893s
+Array size = 10000
+Number of processes = 16
+Time to generate arrays =  0.0020 seconds
+Time to merge all the arrays received =  0.0005 seconds
+Total time to run the program =  0.0032 seconds

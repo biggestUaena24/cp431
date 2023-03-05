@@ -1,0 +1,36 @@
+Rank 1:  0.00101995s
+Rank 2:  0.00100398s
+Rank 3:  0.00066495s
+Rank 4:  0.00066400s
+Rank 5:  0.00064802s
+Rank 7:  0.00067282s
+Rank 8:  0.00065494s
+Rank 6:  0.00065804s
+Rank 9:  0.00096703s
+Rank 10:  0.00066805s
+Rank 12:  0.00089502s
+Rank 11:  0.00066590s
+Rank 13:  0.00066781s
+Rank 14:  0.00100017s
+Rank 15:  0.00067806s
+Rank 17:  0.00067711s
+Rank 16:  0.00067496s
+Rank 18:  0.01403499s
+Rank 19:  0.00067592s
+Rank 20:  0.00091004s
+Rank 21:  0.00067091s
+Rank 22:  0.00067902s
+Rank 23:  0.00101185s
+Rank 24:  0.00067806s
+Rank 25:  0.00113797s
+Rank 26:  0.00067592s
+Rank 27:  0.00104308s
+Rank 28:  0.00102115s
+Rank 29:  0.00105500s
+Rank 30:  0.00067902s
+Rank 31:  0.00066304s
+Array size = 1000000
+Number of processes = 32
+Time to generate arrays =  0.5743 seconds
+Time to merge all the arrays received =  0.2311 seconds
+Total time to run the program =  1.2073 seconds

@@ -1,0 +1,6 @@
+Rank 1:  0.02193904s
+Array size = 1000000
+Number of processes = 2
+Time to generate arrays =  0.1699 seconds
+Time to merge all the arrays received =  0.0343 seconds
+Total time to run the program =  0.2104 seconds
