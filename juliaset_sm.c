@@ -9,10 +9,13 @@
 #include <complex.h>
 
 #define ARRAY_SIZE 10
-#define WIDTH 2048 
-#define HEIGHT 2048 
+#define WIDTH 4096 
+#define HEIGHT 4096 
 #define MAX_ITER 1000
 #define NUM_THREADS 8
+#define RED_MOD 2 
+#define GREEN_MOD 1 
+#define BLUE_MOD 1 
 
 typedef struct {
     unsigned char red;
@@ -45,9 +48,9 @@ void *generate_julia_set_section(void *args) {
             }
 
             Pixel *pixel = &image[y * WIDTH + x];
-            pixel->red = iter % 256;
-            pixel->green = iter % 256;
-            pixel->blue = iter % 256;
+            pixel->red = (iter * RED_MOD) % 256;
+            pixel->green = (iter * GREEN_MOD) % 256;
+            pixel->blue = (iter * BLUE_MOD) % 256;
         }
     }
 
