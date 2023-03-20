@@ -56,8 +56,11 @@ int main(int argc, char **argv) {
     double complex c = -0.8 + 0.156 * I;
     int rows_per_process = HEIGHT / size;
     // (rank-1) * rows_per_process + min((rank-1), (HEIGHT % size - 1))
-    int start_row = (rank-1) * rows_per_process + min((rank-1), (HEIGHT % (size - 1)));
-    int end_row = (rank) * rows_per_process + min((rank), (HEIGHT % (size - 1))) - 1;
+    int start_row = rank * rows_per_process;
+    int end_row = start_row + rows_per_process;
+    if (rank == size - 1) {
+        end_row = HEIGHT;
+    }
 
     generate_julia_set_section(image, start_row, end_row, c);
 
