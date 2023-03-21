@@ -47,6 +47,18 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    MPI_Datatype MPI_PIXEL;
+    MPI_Datatype types[3] = { MPI_UNSIGNED_CHAR, MPI_UNSIGNED_CHAR, MPI_UNSIGNED_CHAR };
+    int block_lengths[3] = { 1, 1, 1 };
+    MPI_Aint offsets[3];
+
+    offsets[0] = offsetof(Pixel, red);
+    offsets[1] = offsetof(Pixel, green);
+    offsets[2] = offsetof(Pixel, blue);
+
+    MPI_Type_create_struct(3, block_lengths, offsets, types, &MPI_PIXEL);
+    MPI_Type_commit(&MPI_PIXEL);
+
     // MPI_Win win;
     // MPI_Aint image_size = WIDTH * HEIGHT * sizeof(Pixel);
     Pixel *image = malloc(WIDTH * HEIGHT * sizeof(Pixel));
@@ -70,10 +82,10 @@ int main(int argc, char **argv) {
         Pixel *temp = malloc(WIDTH * rows_per_process * sizeof(Pixel));
 
         for (int i=1;i<size;i++) {
-            start_row = i * rows_per_process;
-            end_row = (i + 1) * rows_per_process;
-            MPI_Recv(temp, (end_row - start_row) * WIDTH, MPI_UNSIGNED_CHAR, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            memcpy(&image[start_row * WIDTH], temp, (end_row - start_row) * WIDTH * sizeof(Pixel));
+            int local_start_row = i * rows_per_process + min(i, remainder_rows);
+            int local_end_row = local_start_row + rows_per_process + (i < remainder_rows ? 1 : 0);
+            MPI_Recv(temp, (local_end_row - local_start_row) * WIDTH, MPI_PIXEL, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            memcpy(&image[local_start_row * WIDTH], temp, (local_end_row - local_start_row) * WIDTH * sizeof(Pixel));
         }
 
         free(temp);
@@ -85,7 +97,7 @@ int main(int argc, char **argv) {
 
         printf("finished writing image...\n");
     } else {
-        MPI_Send(&image[start_row * WIDTH], (end_row - start_row) * WIDTH, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(&image[start_row * WIDTH], (end_row - start_row) * WIDTH, MPI_PIXEL, 0, 0, MPI_COMM_WORLD);
     }
 
     // MPI_Win_free(&win);
