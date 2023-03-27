@@ -37,8 +37,9 @@ void generate_julia_set_section(Pixel *image, int start_row, int end_row, double
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
-    if (argc < 3) {
-        printf("Usage: ./gen_juliaset [width] [height]\n");
+    if (argc < 5) {
+        printf("Usage: ./gen_juliaset [width] [height] [c1] [c2]\n");
+        MPI_Finalize();
         return 0;
     }
 
