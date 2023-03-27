@@ -3,6 +3,7 @@
 #include <complex.h>
 #include <png.h>
 #include <time.h>
+#include "mpi.h"
 
 typedef struct {
     unsigned char red;
@@ -84,9 +85,12 @@ void write_png_file(const char *filename, int width, int height, Pixel *image) {
 }
 
 int main(int argc, char **argv) {
+    MPI_Init(&argc, &argv);
+
     if (argc < 9) {
         printf("Usage: ./gen_juliaset [width] [height] [c1] [c2] [iter] [red] [blue] [green]\n");
-        exit(1);
+        MPI_Finalize();
+        return 0;
     }
 
     // image dimension
@@ -99,6 +103,10 @@ int main(int argc, char **argv) {
     double c2 = strtod(argv[4], &endptr);
     double complex c = c1 + c2 * I;
 
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     int max_iter = atoi(argv[5]);
 
     // colour modifiers
@@ -107,23 +115,27 @@ int main(int argc, char **argv) {
     int green_mod = atoi(argv[8]);
 
     // for benchmark
-    clock_t start_time, end_time;
-    double total_time;
+    double start_time, end_time, total_time;
 
     Pixel *image = malloc(sizeof(Pixel) * width * height);
 
-    start_time = clock();
+    // start the timer
+    start_time = MPI_Wtime();
 
     generate_julia_set(image, c, max_iter, width, height, red_mod, blue_mod, green_mod);
 
-    end_time = clock();
-    total_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    // end the timer
+    end_time = MPI_Wtime();
+
+    total_time = end_time - start_time;
     
     printf("Time taken: %f seconds\n", total_time);
 
     char filename[100];
-    sprintf(filename, "juliaset_%.6lf_%.6lf.png", c1, c2);
+    sprintf(filename, "juliaset_%d_%.6lf_%.6lf.png", rank, c1, c2);
     write_png_file(filename, width, height, image);
+
+    MPI_Finalize();
 
     return 0;
 }
