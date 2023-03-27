@@ -82,14 +82,14 @@ int main(int argc, char **argv) {
 
     if (rank == 0) {
         printf("waiting for image data...\n");
-        // double *processing_time_per_rank = malloc(sizeof(double) * size);
-        // processing_time_per_rank[0] = total_time;
+        double *processing_time_per_rank = malloc(sizeof(double) * size);
+        processing_time_per_rank[0] = total_time;
         for (int i=1;i<size;i++) {
             Pixel *temp = malloc(width * rows_per_process * sizeof(Pixel));
             start_row = i * rows_per_process;
             end_row = (i + 1) * rows_per_process;
             MPI_Recv(temp, rows_per_process * width, MPI_PIXEL, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            // MPI_Recv(&processing_time_per_rank[i], 1, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&processing_time_per_rank[i], 1, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             memcpy(&image[start_row * width], temp, rows_per_process * width * sizeof(Pixel));
             free(temp);
         }
@@ -102,18 +102,19 @@ int main(int argc, char **argv) {
         fclose(fp);
 
         printf("finished writing image...\n");
-        // double sum = 0.0;
-        // for (int i=0;i<size;i++) {
-        //     printf("rank %d processing time: %f\n", i, processing_time_per_rank[i]);
-        //     sum += processing_time_per_rank[i];
-        // }
+        double sum = 0.0;
+        for (int i=0;i<size;i++) {
+            printf("rank %d processing time: %f\n", i, processing_time_per_rank[i]);
+            sum += processing_time_per_rank[i];
+        }
 
-        // double avg = sum / size;
-        // printf("average processing time: %f", avg);        
+        double avg = sum / size;
+        printf("average processing time: %f\n", avg);
+        free(processing_time_per_rank);  
     } 
     else {
         MPI_Send(&image[start_row * width], (end_row - start_row) * width, MPI_PIXEL, 0, 0, MPI_COMM_WORLD);
-        // MPI_Send(&total_time, sizeof(double), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+        MPI_Send(&total_time, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
     }
 
     free(image);
