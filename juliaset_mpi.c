@@ -64,8 +64,9 @@ int main(int argc, char **argv) {
     MPI_Type_create_struct(3, block_lengths, offsets, types, &MPI_PIXEL);
     MPI_Type_commit(&MPI_PIXEL);
     char *endptr;
-    double c1 = strtod(argv[1], &endptr);
-    double c2 = strtod(argv[2], &endptr);
+    double c1 = strtod(argv[3], &endptr);
+    double c2 = strtod(argv[4], &endptr);
+    
     double complex c = c1 + c2 * I;
     int rows_per_process = height / size;
     int start_row = rank * rows_per_process;
