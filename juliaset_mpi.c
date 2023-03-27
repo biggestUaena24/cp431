@@ -18,7 +18,7 @@ typedef struct {
 void generate_julia_set_section(Pixel *image, int start_row, int end_row, double complex c, int rank, int width, int height) {
     for (int y=start_row;y<end_row;y++) {
         for (int x=0;x<width;x++) {
-            double complex z = (x - width / 2.0) * 4.0 / width + (y - height / 2.0) * 4.0 / height * I;
+            double complex z = ((x - width / 2.0) / width * 4.0) + ((y - height / 2.0) / height * 4.0) * I;
             int iter = 0;
 
             while (abs(z) < 2.0 && iter < MAX_ITER) {
