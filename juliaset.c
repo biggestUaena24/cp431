@@ -2,11 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <png.h>
+#include <time.h>
 
-#define WIDTH 1024
-#define HEIGHT 1024
-
-void write_png_file(char* filename, int* buffer) {
+void write_png_file(char* filename, int* buffer, int width, int height) {
     FILE* fp = fopen(filename, "wb");
     if (!fp) {
         fprintf(stderr, "Error: Could not open file %s for writing\n", filename);
@@ -37,13 +35,13 @@ void write_png_file(char* filename, int* buffer) {
 
     png_init_io(png_ptr, fp);
 
-    png_set_IHDR(png_ptr, info_ptr, WIDTH, HEIGHT, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+    png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
     png_write_info(png_ptr, info_ptr);
 
-    png_bytep row_pointer[HEIGHT];
-    for (int y = 0; y < HEIGHT; y++) {
-        row_pointer[y] = (png_bytep)(buffer + y * WIDTH);
+    png_bytep row_pointer[height];
+    for (int y = 0; y < height; y++) {
+        row_pointer[y] = (png_bytep)(buffer + y * width);
     }
     png_write_image(png_ptr, row_pointer);
 
@@ -53,7 +51,18 @@ void write_png_file(char* filename, int* buffer) {
     fclose(fp);
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc < 3) {
+        printf("Usage: ./juliaset [width] [height]\n");
+        exit(1);
+    }
+
+    int width = atoi(argv[1]);
+    int height = atoi(argv[2]);
+
+
+    clock_t start_time, end_time;
+    double total_time;
     double cx = -0.8;
     double cy = 0.156;
     double xmin = -1.5;
@@ -62,12 +71,15 @@ int main() {
     double ymax = 1.5;
     int maxiter = 1000;
 
-    int image[WIDTH * HEIGHT];
+    int *image = malloc(sizeof(int) * width * height);
+    printf("here\n");
 
-    for (int j = 0; j < HEIGHT; j++) {
-        for (int i = 0; i < WIDTH; i++) {
-            double x = xmin + i * (xmax - xmin) / WIDTH;
-            double y = ymin + j * (ymax - ymin) / HEIGHT;
+    start_time = clock();
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < width; i++) {
+            double x = xmin + i * (xmax - xmin) / width;
+            double y = ymin + j * (ymax - ymin) / height;
             int iter = 0;
             double zx = x;
             double zy = y;
@@ -77,11 +89,16 @@ int main() {
                 zx = tmp;
                 iter++;
             }
-            image[j * WIDTH + i] = iter-1;
+            image[j * width + i] = iter-1;
         }
     }
 
-    write_png_file("juliaset.png", image);
+    end_time = clock();
+    total_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    
+    printf("Time taken: %f seconds\n", total_time);
+
+    write_png_file("juliaset.png", image, width, height);
 
     return 0;
 }
