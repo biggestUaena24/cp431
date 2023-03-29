@@ -122,11 +122,11 @@ int main(int argc, char **argv) {
 
     MPI_Win window;
     Pixel *image; 
-    MPI_Win_allocation(sizeof(Pixel) * width * height, sizeof(Pixel), MPI_INFO_NULL, MPI_COMM_WORLD, &image, &window);
+    MPI_Win_allocate_shared(sizeof(Pixel) * width * height, sizeof(Pixel), MPI_INFO_NULL, MPI_COMM_WORLD, &image, &window);
 
     MPI_Win processing_time_window;
     double *processing_time_per_rank;
-    MPI_Win_allocation(sizeof(double) * size, sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &processing_time_per_rank, &processing_time_window)
+    MPI_Win_allocate_shared(sizeof(double) * size, sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &processing_time_per_rank, &processing_time_window);
 
     // start the timer
     start_time = MPI_Wtime();
@@ -140,10 +140,12 @@ int main(int argc, char **argv) {
 
     processing_time_per_rank[rank] = total_time;
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     if (rank == 0) {
         printf("waiting for image data...\n");
         char filename[100];
-        sprintf(filename, "juliaset_%.6lf_%.6lf.png", c1, c2);
+        sprintf(filename, "juliaset_%.6lf_%.6lf_sm.png", c1, c2);
         write_png_file(filename, width, height, image);
         printf("finished writing image...\n");
         double sum = 0.0;
