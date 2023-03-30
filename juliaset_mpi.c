@@ -10,10 +10,45 @@ typedef struct {
     unsigned char blue;
 } Pixel;
 
-void generate_julia_set_section(Pixel *image, int start_row, int end_row, double complex c, int max_iter, int width, int height, int red_mod, int blue_mod, int green_mod) {
+void map_colour(Pixel *pixel, int iter, int max_iter, int red_mod, int green_mod, int blue_mod, int mode) {
+    if (mode == 0) {
+        // black and white
+        if (iter < max_iter) {
+            // bounded points colour them white
+            pixel->red = 255;
+            pixel->green = 255;
+            pixel->blue = 255;
+        } else {
+            // points that escape to infinity colour them black
+            pixel->red = 0;
+            pixel->green = 0;
+            pixel->blue = 0;
+        }
+    } else if (mode == 1) {
+        // gray scale
+        pixel->red = iter % 256;
+        pixel->green = iter % 256;
+        pixel->blue = iter % 256;
+    } else {
+        // colour full
+        if (iter < max_iter) {
+            // bounded points colour them black
+            pixel->red = (iter * red_mod) % 256;
+            pixel->green = (iter * green_mod) % 256;
+            pixel->blue = (iter * blue_mod) % 256;
+        } else {
+            // points that escape to infinity colour them black
+            pixel->red = 0;
+            pixel->green = 0;
+            pixel->blue = 0;
+        }
+    }
+}
+
+void generate_julia_set_section(Pixel *image, int start_row, int end_row, double complex c, int max_iter, int width, int height, int red_mod, int green_mod, int blue_mod, int mode, double zoom_factor) {
     for (int y=start_row;y<end_row;y++) {
         for (int x=0;x<width;x++) {
-            double complex z = ((x - width / 2.0) / width * 4.0) + ((y - height / 2.0) / height * 4.0) * I;
+            double complex z = ((x - width / 2.0) / width * zoom_factor) + ((y - height / 2.0) / height * zoom_factor) * I;
             int iter = 0;
 
             while (cabs(z) < 2.0 && iter < max_iter) {
@@ -22,9 +57,7 @@ void generate_julia_set_section(Pixel *image, int start_row, int end_row, double
             }
 
             Pixel *pixel = &image[y * width + x];
-            pixel->red = (iter * red_mod) % 256;
-            pixel->green = (iter * green_mod) % 256;
-            pixel->blue = (iter * blue_mod) % 256;
+            map_colour(pixel, iter, max_iter, red_mod, green_mod, blue_mod, mode);
         }
     }
 }
@@ -86,32 +119,42 @@ void write_png_file(const char *filename, int width, int height, Pixel *image) {
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
-    if (argc < 9) {
-        printf("Usage: ./gen_juliaset [width] [height] [c1] [c2] [iter] [red] [blue] [green]\n");
+    if (argc < 12) {
+        printf("Usage: ./gen_juliaset [filename] [width] [height] [c1] [c2] [iter] [red] [blue] [green] [mode] [zoom_factor]\n");
         MPI_Finalize();
         return 0;
     }
 
+    char filename[100];
+    sprintf(filename, "%s.png", argv[1]);
+
+    char log_filename[100];
+    sprintf(log_filename, "%s.txt", argv[1]);
+
     // image dimension
-    int width = atoi(argv[1]);
-    int height = atoi(argv[2]);
+    int width = atoi(argv[2]);
+    int height = atoi(argv[3]);
 
     // c constant, real + imag
     char *endptr;
-    double c1 = strtod(argv[3], &endptr);
-    double c2 = strtod(argv[4], &endptr);
+    double c1 = strtod(argv[4], &endptr);
+    double c2 = strtod(argv[5], &endptr);
     double complex c = c1 + c2 * I;
     
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    int max_iter = atoi(argv[5]);
+    int max_iter = atoi(argv[6]);
 
     // colour modifiers
-    int red_mod = atoi(argv[6]);
-    int blue_mod = atoi(argv[7]);
+    int red_mod = atoi(argv[7]);
     int green_mod = atoi(argv[8]);
+    int blue_mod = atoi(argv[9]);
+    int colour_mode = atoi(argv[10]);
+
+    // zoom factor, bigger values => more zoom out
+    double zoom_factor = strtod(argv[11], &endptr);
     
     int rows_per_process = height / size;
     int start_row = rank * rows_per_process;
@@ -138,7 +181,7 @@ int main(int argc, char **argv) {
     // start the timer
     start_time = MPI_Wtime();
 
-    generate_julia_set_section(image, start_row, end_row, c, max_iter, width, height, red_mod, blue_mod, green_mod);
+    generate_julia_set_section(image, start_row, end_row, c, max_iter, width, height, red_mod, green_mod, blue_mod, colour_mode, zoom_factor);
 
     // end the timer
     end_time = MPI_Wtime();
@@ -158,21 +201,32 @@ int main(int argc, char **argv) {
             memcpy(&image[start_row * width], temp, rows_per_process * width * sizeof(Pixel));
             free(temp);
         }
-
-        char filename[100];
-        sprintf(filename, "juliaset_%.6lf_%.6lf.png", c1, c2);
         
         write_png_file(filename, width, height, image);
 
-        printf("finished writing image...\n");
+        FILE *log_fp = fopen(log_filename, "w");
+
+        if (log_fp == NULL) {
+            printf("Could not open log file.\n");
+        }
+
         double sum = 0.0;
         for (int i=0;i<size;i++) {
+            if (log_fp != NULL) {
+                fprintf(log_fp, "%05lf\n", processing_time_per_rank[i]);
+            }
             printf("rank %d processing time: %f\n", i, processing_time_per_rank[i]);
             sum += processing_time_per_rank[i];
         }
 
         double avg = sum / size;
         printf("average processing time: %f\n", avg);
+
+        if (log_fp != NULL) {
+            fprintf(log_fp, "%05lf\n", avg);
+            fclose(log_fp);
+        }
+
         free(processing_time_per_rank);  
     } 
     else {
