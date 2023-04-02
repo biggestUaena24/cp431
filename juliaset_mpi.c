@@ -98,7 +98,7 @@ void write_png_file(const char *filename, int width, int height, Pixel *image) {
     png_write_info(png_ptr, info_ptr);
 
     png_bytep row = (png_bytep)malloc(3 * width * sizeof(png_byte));
-    for (int y = 0; y < height; y++) {
+    for (int y = height - 1; y >= 0; y--) {
         for (int x = 0; x < width; x++) {
             row[x * 3] = image[y * width + x].red;
             row[x * 3 + 1] = image[y * width + x].green;
@@ -228,8 +228,7 @@ int main(int argc, char **argv) {
         }
 
         free(processing_time_per_rank);  
-    } 
-    else {
+    } else {
         MPI_Send(&image[start_row * width], (end_row - start_row) * width, MPI_PIXEL, 0, 0, MPI_COMM_WORLD);
         MPI_Send(&total_time, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
     }
